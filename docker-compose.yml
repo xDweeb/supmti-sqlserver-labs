@@ -1,0 +1,56 @@
+services:
+  # ── SQL Server 2019 Express ────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlserver
+    hostname: sqlserver
+    env_file: .env
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q 'SELECT 1' || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── Init container – runs SQL scripts then exits ───────────────────
+  initdb:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: initdb
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./sql:/sql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "⏳ Running SQL initialization scripts..."
+        echo "▶  Running 00_create_db.sql ..."
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -i /sql/00_create_db.sql
+        if [ $$? -ne 0 ]; then echo "❌ Error running 00_create_db.sql"; exit 1; fi
+        for f in /sql/01_schema.sql /sql/02_constraints.sql /sql/03_seed.sql; do
+          echo "▶  Running $$(basename $$f) ..."
+          /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -d Biblio -i "$$f"
+          if [ $$? -ne 0 ]; then
+            echo "❌ Error running $$f"
+            exit 1
+          fi
+        done
+        echo "✅ Database [Biblio] initialized successfully!"
+
+volumes:
+  mssql_data:
+    name: mssql_data
