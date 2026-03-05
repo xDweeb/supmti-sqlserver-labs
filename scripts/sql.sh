@@ -17,7 +17,7 @@ if [ -z "${MSSQL_SA_PASSWORD:-}" ]; then
 fi
 
 echo "🔌 Connecting to SQL Server (Ctrl+C to exit)..."
-docker exec -it sqlserver /opt/mssql-tools/bin/sqlcmd \
-    -S localhost -U sa -P "${MSSQL_SA_PASSWORD}" \
+docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd \
+    -S localhost -U sa -P "${MSSQL_SA_PASSWORD}" -C \
     -d Biblio \
     "$@"

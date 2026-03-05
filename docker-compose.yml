@@ -16,7 +16,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q 'SELECT 1' || exit 1",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1",
         ]
       interval: 5s
       timeout: 5s
@@ -26,7 +26,7 @@ services:
 
   # ── Init container – runs SQL scripts then exits ───────────────────
   initdb:
-    image: mcr.microsoft.com/mssql-tools
+    image: mcr.microsoft.com/mssql/server:2019-latest
     container_name: initdb
     depends_on:
       sqlserver:
@@ -39,11 +39,11 @@ services:
       - |
         echo "⏳ Running SQL initialization scripts..."
         echo "▶  Running 00_create_db.sql ..."
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -i /sql/00_create_db.sql
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -C -i /sql/00_create_db.sql
         if [ $$? -ne 0 ]; then echo "❌ Error running 00_create_db.sql"; exit 1; fi
         for f in /sql/01_schema.sql /sql/02_constraints.sql /sql/03_seed.sql; do
           echo "▶  Running $$(basename $$f) ..."
-          /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -d Biblio -i "$$f"
+          /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -C -d Biblio -i "$$f"
           if [ $$? -ne 0 ]; then
             echo "❌ Error running $$f"
             exit 1
